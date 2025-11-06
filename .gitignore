@@ -1,0 +1,109 @@
+# HHS 项目 .gitignore
+
+# ===== 文档文件 =====
+*.md
+!README.md
+
+# ===== 通用规则 =====
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*~
+
+# ===== IDE 配置 =====
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.project
+.classpath
+.settings/
+.metadata/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# ===== 后端 (Java/Maven) =====
+hhs-backend/target/
+hhs-backend/*.jar
+hhs-backend/*.war
+hhs-backend/*.class
+hhs-backend/logs/
+hhs-backend/.mvn/
+hhs-backend/mvnw
+hhs-backend/mvnw.cmd
+
+# ===== 前端 (Node.js/Vue) =====
+hhs-frontend/node_modules/
+hhs-frontend/dist/
+hhs-frontend/.cache/
+hhs-frontend/coverage/
+hhs-frontend/*.local
+
+# Build files
+hhs-frontend/.vite/
+hhs-frontend/.temp/
+
+# ===== 环境配置文件 =====
+.env
+.env.local
+.env.*.local
+*.env
+application-local.yml
+application-local.properties
+
+# ===== 敏感信息 =====
+# 不要提交包含密码、密钥的配置文件
+**/application-prod.yml
+**/application-prod.properties
+**/*secret*
+**/*password*
+**/*credential*
+
+# ===== 数据库 =====
+*.db
+*.sqlite
+*.sql.backup
+
+# ===== 测试相关 =====
+**/test-output/
+**/surefire-reports/
+**/failsafe-reports/
+
+# ===== 操作系统 =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# ===== 其他 =====
+*.bak
+*.cache
+*.diff
+*.err
+*.orig
+*.rej
+*.swo
+*.swp
+*.vi
+*.zip
+*.tar.gz
+*.rar
+
+# ===== Playwright MCP =====
+.playwright-mcp/
+
+# 但保留这些重要文件
+!.gitignore
+!.gitkeep
+

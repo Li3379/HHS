@@ -10,6 +10,8 @@ public interface CommentService {
     List<CommentVO> listComments(Long tipId);
 
     void createComment(Long userId, Long tipId, CommentCreateRequest request);
+    
+    void likeComment(Long userId, Long commentId);
 }
 
 

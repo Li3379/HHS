@@ -1,6 +1,7 @@
 package com.hhs.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.hhs.dto.CommentCreateRequest;
 import com.hhs.entity.Comment;
 import com.hhs.entity.User;
@@ -58,6 +59,20 @@ public class CommentServiceImpl implements CommentService {
         comment.setCreateTime(LocalDateTime.now());
 
         commentMapper.insert(comment);
+    }
+    
+    @Override
+    public void likeComment(Long userId, Long commentId) {
+        Comment comment = commentMapper.selectById(commentId);
+        if (comment == null) {
+            throw new RuntimeException("评论不存在");
+        }
+        
+        // 使用UpdateWrapper只更新点赞数
+        LambdaUpdateWrapper<Comment> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Comment::getId, commentId)
+                .set(Comment::getLikeCount, comment.getLikeCount() + 1);
+        commentMapper.update(null, updateWrapper);
     }
 }
 

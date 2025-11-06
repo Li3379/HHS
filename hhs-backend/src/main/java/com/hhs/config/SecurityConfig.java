@@ -42,8 +42,11 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-resources/**",
                                 "/doc.html",
+                                "/actuator/health",
+                                "/actuator/info",
                                 "/error"
                         ).permitAll()
+                        .requestMatchers("/actuator/shutdown").authenticated()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

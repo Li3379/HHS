@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import TipCard from "@/components/TipCard.vue";
 import { fetchTips } from "@/api/healthTip";
@@ -49,6 +49,11 @@ const toDetail = (id) => {
 const toPublish = () => {
   router.push("/publish");
 };
+
+// 监听分类变化，重新加载技巧列表
+watch(category, () => {
+  loadTips();
+});
 
 onMounted(() => {
   loadTips();
