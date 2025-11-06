@@ -1,0 +1,49 @@
+package com.hhs.config;
+
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.output.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
+
+import java.util.List;
+
+@Configuration
+public class LangChain4jConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(LangChain4jConfig.class);
+
+    @Value("${spring.ai.langchain4j.openai.chat-model.api-key:}")
+    private String apiKey;
+
+    @Value("${spring.ai.langchain4j.openai.chat-model.model-name:gpt-3.5-turbo}")
+    private String modelName;
+
+    @Value("${spring.ai.langchain4j.openai.chat-model.temperature:0.7}")
+    private double temperature;
+
+    @Bean
+    public ChatLanguageModel chatLanguageModel() {
+        if (!StringUtils.hasText(apiKey)) {
+            log.warn("OpenAI API Key 未配置，AI 功能将使用离线占位逻辑。");
+            return new ChatLanguageModel() {
+                @Override
+                public Response<AiMessage> generate(List<ChatMessage> messages) {
+                    AiMessage aiMessage = AiMessage.from("AI服务未配置，请联系管理员设置API Key后再试。");
+                    return Response.from(aiMessage);
+                }
+            };
+        }
+        return OpenAiChatModel.builder()
+                .apiKey(apiKey)
+                .modelName(modelName)
+                .temperature(temperature)
+                .build();
+    }
+}

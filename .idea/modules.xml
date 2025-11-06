@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/HHS.iml" filepath="$PROJECT_DIR$/.idea/HHS.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hhs-backend/hhs-backend.iml" filepath="$PROJECT_DIR$/hhs-backend/hhs-backend.iml" />
+    </modules>
+  </component>
+</project>
