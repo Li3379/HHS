@@ -8,6 +8,7 @@ import com.hhs.dto.UpdateProfileRequest;
 import com.hhs.security.SecurityUtils;
 import com.hhs.service.UserService;
 import com.hhs.vo.AuthResponse;
+import com.hhs.vo.UserProfileVO;
 import com.hhs.vo.UserVO;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,9 +40,9 @@ public class UserController {
     }
 
     @GetMapping("/user/profile")
-    public Result<UserVO> profile() {
+    public Result<UserProfileVO> profile() {
         Long userId = SecurityUtils.getCurrentUserId();
-        return Result.success(userService.getProfile(userId));
+        return Result.success(userService.getUserProfile(userId));
     }
 
     @PutMapping("/user/profile")

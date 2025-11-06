@@ -24,6 +24,10 @@ public class CommentVO {
     private LocalDateTime createTime;
 
     private Long parentId;
+
+    private Long tipId;
+
+    private String tipTitle;
 }
 
 

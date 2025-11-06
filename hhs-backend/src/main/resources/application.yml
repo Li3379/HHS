@@ -3,6 +3,12 @@ spring:
     name: hhs-backend
   profiles:
     active: dev
+  # Spring Boot 文件上传配置
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 2MB
+      max-request-size: 2MB
 
 server:
   port: 8080
@@ -11,3 +17,9 @@ server:
 logging:
   level:
     root: INFO
+
+# 文件上传配置
+file:
+  upload:
+    path: ./uploads
+    base-url: http://localhost:8080

@@ -38,6 +38,7 @@ hhs-backend/logs/
 hhs-backend/.mvn/
 hhs-backend/mvnw
 hhs-backend/mvnw.cmd
+hhs-backend/uploads/
 
 # ===== 前端 (Node.js/Vue) =====
 hhs-frontend/node_modules/

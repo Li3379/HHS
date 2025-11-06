@@ -1,0 +1,83 @@
+package com.hhs.controller;
+
+import com.hhs.common.Result;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/upload")
+public class FileUploadController {
+
+    @Value("${file.upload.path:./uploads}")
+    private String uploadPath;
+
+    @Value("${file.upload.base-url:http://localhost:8080}")
+    private String baseUrl;
+
+    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
+    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        log.info("收到头像上传请求，文件名：{}，大小：{} bytes", 
+                file.getOriginalFilename(), file.getSize());
+        
+        if (file.isEmpty()) {
+            log.warn("文件为空");
+            return Result.failure(400, "文件不能为空");
+        }
+
+        // 验证文件类型
+        String contentType = file.getContentType();
+        log.info("文件类型：{}", contentType);
+        if (contentType == null || !contentType.startsWith("image/")) {
+            log.warn("不支持的文件类型：{}", contentType);
+            return Result.failure(400, "只能上传图片文件");
+        }
+
+        // 验证文件大小 (2MB)
+        if (file.getSize() > 2 * 1024 * 1024) {
+            log.warn("文件过大：{} bytes", file.getSize());
+            return Result.failure(400, "文件大小不能超过2MB");
+        }
+
+        try {
+            // 生成唯一文件名
+            String originalFilename = file.getOriginalFilename();
+            String extension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String filename = "avatar_" + UUID.randomUUID() + extension;
+
+            // 创建上传目录
+            Path uploadDir = Paths.get(uploadPath, "avatars");
+            Files.createDirectories(uploadDir);
+            log.info("上传目录：{}", uploadDir.toAbsolutePath());
+
+            // 保存文件（使用 REPLACE_EXISTING 避免冲突）
+            Path filePath = uploadDir.resolve(filename);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            log.info("文件保存成功：{}", filePath.toAbsolutePath());
+
+            // 返回访问URL
+            String fileUrl = baseUrl + "/uploads/avatars/" + filename;
+            log.info("返回文件URL：{}", fileUrl);
+            return Result.success(fileUrl);
+
+        } catch (IOException e) {
+            log.error("文件上传失败", e);
+            return Result.failure(500, "文件上传失败：" + e.getMessage());
+        }
+    }
+}
+

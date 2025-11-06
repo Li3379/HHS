@@ -12,16 +12,49 @@
         <RouterLink to="/user">个人中心</RouterLink>
       </nav>
       <div class="actions">
-        <el-button type="primary" @click="handleLogin">登录 / 注册</el-button>
+        <template v-if="isLoggedIn">
+          <el-dropdown @command="handleCommand">
+            <span class="user-info">
+              <el-avatar :size="32" :src="userInfo?.avatar">
+                {{ userInfo?.nickname?.[0] }}
+              </el-avatar>
+              <span class="username">{{ userInfo?.nickname }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon>
+                  个人中心
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  <el-icon><SwitchButton /></el-icon>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+        <template v-else>
+          <el-button type="primary" @click="handleLogin">登录 / 注册</el-button>
+        </template>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
+import { computed } from "vue";
 import { useRouter } from "vue-router";
+import { ElMessageBox, ElMessage } from "element-plus";
+import { ArrowDown, User, SwitchButton } from "@element-plus/icons-vue";
+import { useUserStore } from "@/store/user";
 
 const router = useRouter();
+const userStore = useUserStore();
+
+const isLoggedIn = computed(() => !!userStore.token);
+const userInfo = computed(() => userStore.info);
 
 const goHome = () => {
   router.push("/");
@@ -29,6 +62,32 @@ const goHome = () => {
 
 const handleLogin = () => {
   router.push("/login");
+};
+
+const handleCommand = (command) => {
+  if (command === "profile") {
+    router.push("/user");
+  } else if (command === "logout") {
+    handleLogout();
+  }
+};
+
+const handleLogout = () => {
+  ElMessageBox.confirm(
+    "确定要退出登录吗？",
+    "提示",
+    {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning"
+    }
+  ).then(() => {
+    userStore.clearUser();
+    ElMessage.success("已退出登录");
+    router.push("/");
+  }).catch(() => {
+    // 用户取消
+  });
 };
 </script>
 
@@ -74,5 +133,28 @@ const handleLogin = () => {
 .nav a.router-link-active {
   color: #409eff;
   font-weight: 600;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.user-info:hover {
+  background-color: #f5f7fa;
+}
+
+.username {
+  font-size: 14px;
+  color: #303133;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
