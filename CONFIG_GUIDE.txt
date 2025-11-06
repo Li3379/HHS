@@ -1,0 +1,13 @@
+# HHS 项目环境配置说明
+
+## 数据库配置
+- 数据库密码通过环境变量 DB_PASSWORD 设置
+- 默认值：your_db_password
+
+## Redis 配置
+- Redis 密码通过环境变量 REDIS_PASSWORD 设置
+- 默认值：your_redis_password
+
+## AI 配置
+- DashScope API Key 通过环境变量 DASH_SCOPE_API_KEY 设置
+
