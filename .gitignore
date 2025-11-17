@@ -107,3 +107,6 @@ Desktop.ini
 !.gitignore
 !.gitkeep
 
+postman-collection.json
+postman-environment.json
+
