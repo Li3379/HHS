@@ -17,6 +17,8 @@ public class UserProfileVO {
 
     private List<TipListItemVO> collectList;
 
+    private List<TipListItemVO> likeList;
+
     private List<CommentVO> commentList;
 }
 

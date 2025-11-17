@@ -18,4 +18,8 @@ public interface HealthTipService {
     ActionStateVO likeTip(Long userId, Long tipId);
 
     ActionStateVO collectTip(Long userId, Long tipId);
+
+    PageResult<TipListItemVO> pageUserTips(Long currentUserId, Long authorId, int page, int size);
+
+    void deleteTip(Long userId, Long tipId);
 }

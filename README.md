@@ -173,11 +173,11 @@ mvn clean install
 mvn spring-boot:run
 ```
 
-后端服务将在 `http://localhost:8080` 启动
+后端服务将在 `http://localhost:8082` 启动
 
 **验证后端启动成功：**
-- 访问 API文档：http://localhost:8080/doc.html
-- 访问 健康检查：http://localhost:8080/actuator/health
+- 访问 API文档：http://localhost:8082/doc.html
+- 访问 健康检查：http://localhost:8082/actuator/health
 
 ### 启动前端服务
 
@@ -371,7 +371,7 @@ Comment (1) ──< (*) LikeRecord
 
 启动后端服务后，访问以下地址查看完整的API文档：
 
-**文档地址：** http://localhost:8080/doc.html
+**文档地址：** http://localhost:8082/doc.html
 
 ### 主要接口概览
 
@@ -583,7 +583,7 @@ sudo systemctl enable hhs-backend
 ```nginx
 # 后端API代理
 upstream hhs_backend {
-    server localhost:8080;
+    server localhost:8082;
 }
 
 server {
@@ -628,7 +628,7 @@ server {
 FROM openjdk:17-jdk-slim
 WORKDIR /app
 COPY target/hhs-backend-0.0.1-SNAPSHOT.jar app.jar
-EXPOSE 8080
+EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
@@ -679,7 +679,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       DASH_SCOPE_API_KEY: ${DASH_SCOPE_API_KEY}
     ports:
-      - "8080:8080"
+      - "8082:8082"
     depends_on:
       - mysql
       - redis
@@ -717,7 +717,7 @@ A: 请确认：
 **Q: 前端请求后端接口404？**
 
 A: 检查：
-1. 后端服务是否已启动（8080端口）
+1. 后端服务是否已启动（8082端口）
 2. `vite.config.js` 中的代理配置是否正确
 3. 浏览器控制台查看实际请求的URL
 

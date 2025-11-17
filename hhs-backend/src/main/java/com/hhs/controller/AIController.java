@@ -1,49 +1,126 @@
 package com.hhs.controller;
 
 import com.hhs.common.Result;
-import com.hhs.dto.AIClassifyRequest;
-import com.hhs.vo.AIClassifyResponse;
+import com.hhs.dto.ai.AIChatRequest;
+import com.hhs.dto.ai.AIChatResponse;
+import com.hhs.dto.ai.AIClassifyRequest;
+import com.hhs.dto.ai.AIClassifyResponse;
+import com.hhs.dto.ai.AIHistoryResponse;
+import com.hhs.dto.ai.ConversationVO;
+import com.hhs.component.AIRateLimiter;
+import com.hhs.security.SecurityUtils;
+import com.hhs.service.AIChatService;
+import com.hhs.service.AIClassifyService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
 import java.util.List;
 
+/**
+ * AI功能Controller
+ */
+@Slf4j
+@Tag(name = "AI功能")
 @RestController
 @RequestMapping("/api/ai")
 public class AIController {
-
+    
+    @Autowired
+    private AIClassifyService classifyService;
+    
+    @Autowired
+    private AIChatService chatService;
+    
+    @Autowired
+    private AIRateLimiter rateLimiter;
+    
+    /**
+     * AI智能分类
+     */
+    @Operation(summary = "AI智能分类内容")
     @PostMapping("/classify")
+    @PreAuthorize("isAuthenticated()")
     public Result<AIClassifyResponse> classify(@RequestBody @Valid AIClassifyRequest request) {
-        // TODO: 集成真实的 AI 分类服务（LangChain4j + HanLP）
-        // 目前返回 Mock 数据，避免前端报错
+        log.info("AI分类请求: title={}", request.title());
         
-        String text = request.text().toLowerCase();
-        String category = "diet"; // 默认分类
-        List<String> tags = Arrays.asList("健康", "生活");
+        AIClassifyResponse response = classifyService.classify(
+            request.title(), 
+            request.content()
+        );
         
-        // 简单的关键词匹配
-        if (text.contains("运动") || text.contains("锻炼") || text.contains("跑步") || text.contains("健身")) {
-            category = "fitness";
-            tags = Arrays.asList("运动", "健身", "锻炼");
-        } else if (text.contains("睡眠") || text.contains("休息") || text.contains("失眠")) {
-            category = "sleep";
-            tags = Arrays.asList("睡眠", "休息", "作息");
-        } else if (text.contains("心理") || text.contains("情绪") || text.contains("压力") || text.contains("焦虑")) {
-            category = "mental";
-            tags = Arrays.asList("心理", "情绪", "减压");
-        } else if (text.contains("饮食") || text.contains("营养") || text.contains("食物") || text.contains("吃")) {
-            category = "diet";
-            tags = Arrays.asList("饮食", "营养", "健康");
-        }
-        
-        AIClassifyResponse response = new AIClassifyResponse(category, tags);
         return Result.success(response);
     }
+    
+    /**
+     * AI对话
+     */
+    @Operation(summary = "AI健康顾问对话")
+    @PostMapping("/chat")
+    public Result<AIChatResponse> chat(@RequestBody @Valid AIChatRequest request) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("AI对话请求: userId={}, sessionId={}", userId, request.sessionId());
+        
+        AIChatResponse response = chatService.chat(
+            userId,
+            request.sessionId(),
+            request.question()
+        );
+        
+        return Result.success(response);
+    }
+    
+    /**
+     * 获取对话历史
+     */
+    @Operation(summary = "获取对话历史")
+    @GetMapping("/chat/history")
+    public Result<AIHistoryResponse> getHistory(@RequestParam String sessionId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("查询对话历史: userId={}, sessionId={}", userId, sessionId);
+        
+        List<ConversationVO> history = chatService.getHistory(sessionId, userId);
+        int remainingCount = rateLimiter.getRemainingCount(userId);
+        
+        AIHistoryResponse response = new AIHistoryResponse(history, remainingCount);
+        return Result.success(response);
+    }
+    
+    /**
+     * 清空对话历史
+     */
+    @Operation(summary = "清空对话历史")
+    @DeleteMapping("/chat/history/{sessionId}")
+    public Result<Void> clearHistory(@PathVariable String sessionId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("清空对话历史: userId={}, sessionId={}", userId, sessionId);
+        
+        chatService.clearSession(userId, sessionId);
+        return Result.success();
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

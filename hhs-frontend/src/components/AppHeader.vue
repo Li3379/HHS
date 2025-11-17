@@ -2,14 +2,14 @@
   <header class="app-header">
     <div class="container header-content">
       <div class="logo" @click="goHome">
-        <span class="logo-title">HHS</span>
+        <span class="logo-title">健捕</span>
         <span class="logo-subtitle">Health Hack System</span>
       </div>
       <nav class="nav">
         <RouterLink to="/">首页</RouterLink>
-        <RouterLink to="/publish">发布技巧</RouterLink>
-        <RouterLink to="/ai-advisor">AI健康顾问</RouterLink>
-        <RouterLink to="/user">个人中心</RouterLink>
+        <a @click="handleNavClick('/ai-advisor')" class="nav-link">AI健康顾问</a>
+        <a @click="handleNavClick('/publish')" class="nav-link">发布技巧</a>
+        <a @click="handleNavClick('/user')" class="nav-link">个人中心</a>
       </nav>
       <div class="actions">
         <template v-if="isLoggedIn">
@@ -36,6 +36,7 @@
           </el-dropdown>
         </template>
         <template v-else>
+          <span class="guest-label">访客模式</span>
           <el-button type="primary" @click="handleLogin">登录 / 注册</el-button>
         </template>
       </div>
@@ -62,6 +63,29 @@ const goHome = () => {
 
 const handleLogin = () => {
   router.push("/login");
+};
+
+const handleNavClick = async (path) => {
+  if (!isLoggedIn.value) {
+    // 访客点击受限功能，弹出登录引导
+    try {
+      await ElMessageBox.confirm(
+        "该功能需要登录使用，登录后可使用完整功能",
+        "需要登录",
+        {
+          confirmButtonText: "立即登录",
+          cancelButtonText: "稍后",
+          type: "info"
+        }
+      );
+      router.push({ path: "/login", query: { redirect: path } });
+    } catch (e) {
+      // 用户取消
+    }
+  } else {
+    // 已登录用户，直接跳转
+    router.push(path);
+  }
 };
 
 const handleCommand = (command) => {
@@ -128,6 +152,13 @@ const handleLogout = () => {
 
 .nav a {
   color: #303133;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.nav a:hover {
+  color: #409eff;
 }
 
 .nav a.router-link-active {
@@ -147,6 +178,12 @@ const handleLogout = () => {
 
 .user-info:hover {
   background-color: #f5f7fa;
+}
+
+.guest-label {
+  margin-right: 12px;
+  font-size: 13px;
+  color: #909399;
 }
 
 .username {

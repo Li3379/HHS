@@ -1,8 +1,11 @@
 package com.hhs.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hhs.common.ErrorCode;
+import com.hhs.common.PageResult;
 import com.hhs.dto.ChangePasswordRequest;
 import com.hhs.dto.LoginRequest;
 import com.hhs.dto.RegisterRequest;
@@ -16,9 +19,12 @@ import com.hhs.vo.*;
 import com.hhs.entity.HealthTip;
 import com.hhs.entity.Collect;
 import com.hhs.entity.Comment;
+import com.hhs.entity.LikeRecord;
 import com.hhs.mapper.HealthTipMapper;
 import com.hhs.mapper.CollectMapper;
 import com.hhs.mapper.CommentMapper;
+import com.hhs.mapper.LikeRecordMapper;
+import com.hhs.service.HealthTipService;
 
 import java.util.List;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,15 +44,21 @@ public class UserServiceImpl implements UserService {
     private final HealthTipMapper healthTipMapper;
     private final CollectMapper collectMapper;
     private final CommentMapper commentMapper;
+    private final LikeRecordMapper likeRecordMapper;
+    private final HealthTipService healthTipService;
 
     public UserServiceImpl(UserMapper userMapper, PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
-                           HealthTipMapper healthTipMapper, CollectMapper collectMapper, CommentMapper commentMapper) {
+                           HealthTipMapper healthTipMapper, CollectMapper collectMapper, 
+                           CommentMapper commentMapper, LikeRecordMapper likeRecordMapper,
+                           HealthTipService healthTipService) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.healthTipMapper = healthTipMapper;
         this.collectMapper = collectMapper;
         this.commentMapper = commentMapper;
+        this.likeRecordMapper = likeRecordMapper;
+        this.healthTipService = healthTipService;
     }
 
     @Override
@@ -96,12 +108,41 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserVO getProfile(Long userId) {
+    public UserPublicProfileVO getPublicProfile(Long userId) {
         User user = userMapper.selectById(userId);
-        if (user == null) {
+        if (user == null || user.getStatus() != null && user.getStatus() == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
-        return toVO(user);
+
+        List<HealthTip> tips = healthTipMapper.selectList(
+                Wrappers.<HealthTip>lambdaQuery()
+                        .eq(HealthTip::getUserId, userId)
+                        .eq(HealthTip::getStatus, 1)
+                        .orderByDesc(HealthTip::getPublishTime)
+        );
+
+        int publishCount = tips.size();
+        int likeCount = tips.stream().mapToInt(HealthTip::getLikeCount).sum();
+        int collectCount = tips.stream().mapToInt(HealthTip::getCollectCount).sum();
+
+        List<TipListItemVO> recentTips = tips.stream()
+                .limit(10)
+                .map(this::toTipListItemVO)
+                .toList();
+
+        UserStatsVO stats = UserStatsVO.builder()
+                .publishCount(publishCount)
+                .likeCount(likeCount)
+                .collectCount(collectCount)
+                .build();
+
+        return UserPublicProfileVO.builder()
+                .id(user.getId())
+                .nickname(user.getNickname())
+                .avatar(user.getAvatar())
+                .stats(stats)
+                .recentTips(recentTips)
+                .build();
     }
 
     @Override
@@ -111,75 +152,142 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
 
-        // 获取用户发布的技巧列表
-        List<HealthTip> publishedTips = healthTipMapper.selectList(
+        // 统计数据（使用SQL聚合查询，不加载全量数据）
+        // 1. 我发布的技巧数
+        int publishCount = healthTipMapper.selectCount(
                 Wrappers.<HealthTip>lambdaQuery()
                         .eq(HealthTip::getUserId, userId)
-                        .orderByDesc(HealthTip::getPublishTime)
-        );
-        List<TipListItemVO> publishList = publishedTips.stream()
-                .map(this::toTipListItemVO)
-                .toList();
-
-        // 获取用户收藏的技巧列表
-        List<Collect> collects = collectMapper.selectList(
-                Wrappers.<Collect>lambdaQuery()
-                        .eq(Collect::getUserId, userId)
-                        .orderByDesc(Collect::getCreateTime)
-        );
-        List<TipListItemVO> collectList = collects.stream()
-                .map(collect -> {
-                    HealthTip tip = healthTipMapper.selectById(collect.getTipId());
-                    return tip != null ? toTipListItemVO(tip) : null;
-                })
-                .filter(Objects::nonNull)
-                .toList();
-
-        // 获取用户的评论列表
-        List<Comment> comments = commentMapper.selectList(
-                Wrappers.<Comment>lambdaQuery()
-                        .eq(Comment::getUserId, userId)
-                        .orderByDesc(Comment::getCreateTime)
-                        .last("LIMIT 50")  // 限制最多返回50条评论
-        );
-        List<CommentVO> commentList = comments.stream()
-                .map(comment -> {
-                    HealthTip tip = healthTipMapper.selectById(comment.getTipId());
-                    String tipTitle = tip != null ? tip.getTitle() : "已删除的技巧";
-                    
-                    return CommentVO.builder()
-                            .id(comment.getId())
-                            .userId(comment.getUserId())
-                            .username(user.getNickname())
-                            .avatar(user.getAvatar())
-                            .content(comment.getContent())
-                            .likeCount(comment.getLikeCount())
-                            .createTime(comment.getCreateTime())
-                            .parentId(comment.getParentId())
-                            .tipTitle(tipTitle)  // 添加技巧标题便于前端显示
-                            .tipId(comment.getTipId())  // 添加技巧ID用于跳转
-                            .build();
-                })
-                .toList();
-
-        // 统计数据
-        int likeCount = publishedTips.stream()
-                .mapToInt(HealthTip::getLikeCount)
-                .sum();
+                        .eq(HealthTip::getStatus, 1)
+        ).intValue();
+        
+        // 2. 我的技巧总浏览量
+        Integer totalViewsResult = healthTipMapper.selectTotalViewsByUser(userId);
+        int totalViews = totalViewsResult != null ? totalViewsResult : 0;
+        
+        // 3. 我的技巧获得的总点赞数
+        Integer totalLikesResult = healthTipMapper.selectTotalLikesByUser(userId);
+        int totalLikes = totalLikesResult != null ? totalLikesResult : 0;
+        
+        // 4. 我收藏的技巧数（有效技巧）
+        Integer collectCountResult = collectMapper.countValidCollectsByUser(userId);
+        int collectCount = collectCountResult != null ? collectCountResult : 0;
+        
+        // 5. 我点赞的技巧数（只统计有效技巧）
+        Integer likeCountResult = likeRecordMapper.countValidLikesByUser(userId);
+        int likeCount = likeCountResult != null ? likeCountResult : 0;
+        
+        // 6. 我发表的评论数（只统计有效技巧的评论）
+        Integer commentCountResult = commentMapper.countValidCommentsByUser(userId);
+        int commentCount = commentCountResult != null ? commentCountResult : 0;
 
         UserStatsVO stats = UserStatsVO.builder()
-                .publishCount(publishList.size())
+                .publishCount(publishCount)
+                .totalViews(totalViews)
+                .totalLikes(totalLikes)
+                .collectCount(collectCount)
                 .likeCount(likeCount)
-                .collectCount(collectList.size())
+                .commentCount(commentCount)
                 .build();
 
         return UserProfileVO.builder()
                 .profile(toVO(user))
                 .stats(stats)
-                .publishList(publishList)
-                .collectList(collectList)
-                .commentList(commentList)
+                .publishList(List.of())  // 列表数据通过分页接口获取
+                .collectList(List.of())
+                .likeList(List.of())
+                .commentList(List.of())
                 .build();
+    }
+
+    @Override
+    public PageResult<TipListItemVO> pageUserTips(Long currentUserId, Long userId, int page, int size) {
+        return healthTipService.pageUserTips(currentUserId, userId, page, size);
+    }
+
+    @Override
+    public PageResult<TipListItemVO> pageUserCollects(Long userId, int page, int size) {
+        int pageNum = Math.max(page, 1);
+        int pageSize = Math.max(1, Math.min(size, 50));
+
+        Page<Collect> pageRequest = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<Collect> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Collect::getUserId, userId)
+                .orderByDesc(Collect::getCreateTime);
+
+        IPage<Collect> result = collectMapper.selectPage(pageRequest, wrapper);
+
+        List<TipListItemVO> collectList = result.getRecords().stream()
+                .map(collect -> {
+                    HealthTip tip = healthTipMapper.selectById(collect.getTipId());
+                    return (tip != null && tip.getStatus() == 1) ? toTipListItemVO(tip) : null;
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        return PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), collectList);
+    }
+
+    @Override
+    public PageResult<TipListItemVO> pageUserLikes(Long userId, int page, int size) {
+        int pageNum = Math.max(page, 1);
+        int pageSize = Math.max(1, Math.min(size, 50));
+
+        Page<LikeRecord> pageRequest = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<LikeRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(LikeRecord::getUserId, userId)
+                .eq(LikeRecord::getTargetType, 1)
+                .orderByDesc(LikeRecord::getCreateTime);
+
+        IPage<LikeRecord> result = likeRecordMapper.selectPage(pageRequest, wrapper);
+
+        List<TipListItemVO> likeList = result.getRecords().stream()
+                .map(likeRecord -> {
+                    HealthTip tip = healthTipMapper.selectById(likeRecord.getTargetId());
+                    return (tip != null && tip.getStatus() == 1) ? toTipListItemVO(tip) : null;
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        return PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), likeList);
+    }
+
+    @Override
+    public PageResult<CommentVO> pageUserComments(Long userId, int page, int size) {
+        int pageNum = Math.max(page, 1);
+        int pageSize = Math.max(1, Math.min(size, 50));
+
+        Page<Comment> pageRequest = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<Comment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Comment::getUserId, userId)
+                .orderByDesc(Comment::getCreateTime);
+
+        IPage<Comment> result = commentMapper.selectPage(pageRequest, wrapper);
+        User user = userMapper.selectById(userId);
+
+        List<CommentVO> commentList = result.getRecords().stream()
+                .map(comment -> {
+                    HealthTip tip = healthTipMapper.selectById(comment.getTipId());
+                    if (tip == null || tip.getStatus() == 0) {
+                        return null;
+                    }
+                    
+                    return CommentVO.builder()
+                            .id(comment.getId())
+                            .userId(comment.getUserId())
+                            .username(user != null ? user.getNickname() : "未知用户")
+                            .avatar(user != null ? user.getAvatar() : null)
+                            .content(comment.getContent())
+                            .likeCount(comment.getLikeCount())
+                            .createTime(comment.getCreateTime())
+                            .parentId(comment.getParentId())
+                            .tipTitle(tip.getTitle())
+                            .tipId(comment.getTipId())
+                            .build();
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        return PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), commentList);
     }
 
     @Override
@@ -239,11 +347,15 @@ public class UserServiceImpl implements UserService {
 
     private TipListItemVO toTipListItemVO(HealthTip tip) {
         User user = userMapper.selectById(tip.getUserId());
+        String content = tip.getContent();
+        String summary = (content != null && content.length() > 100) 
+                ? content.substring(0, 100) + "..." 
+                : (content != null ? content : "");
         return TipListItemVO.builder()
                 .id(tip.getId())
                 .title(tip.getTitle())
                 .category(tip.getCategory())
-                .summary(tip.getContent().length() > 100 ? tip.getContent().substring(0, 100) + "..." : tip.getContent())
+                .summary(summary)
                 .viewCount(tip.getViewCount())
                 .likeCount(tip.getLikeCount())
                 .collectCount(tip.getCollectCount())

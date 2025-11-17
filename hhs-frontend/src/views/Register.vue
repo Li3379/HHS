@@ -1,7 +1,7 @@
 <template>
   <div class="auth-page">
     <el-card class="auth-card" shadow="always">
-      <h2 class="title">注册 HHS 账号</h2>
+      <h2 class="title">注册 健捕 账号</h2>
       <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" autocomplete="username" />

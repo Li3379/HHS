@@ -34,25 +34,43 @@
         </el-form-item>
       </el-form>
       <CommentList :comments="comments" @like="handleLikeComment" />
+      <el-pagination
+        v-if="commentTotal > 0"
+        v-model:current-page="commentPage"
+        v-model:page-size="commentPageSize"
+        :total="commentTotal"
+        :page-sizes="[10, 20, 30, 50]"
+        layout="total, sizes, prev, pager, next"
+        @size-change="handleCommentSizeChange"
+        @current-change="handleCommentPageChange"
+        style="margin-top: 16px; justify-content: center;"
+      />
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
-import { ElMessage } from "element-plus";
+import { computed, ref, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { fetchTipDetail, likeTip, collectTip } from "@/api/healthTip";
 import { fetchComments, createComment, likeComment } from "@/api/comment";
 import CommentList from "@/components/CommentList.vue";
+import { useUserStore } from "@/store/user";
 
 const route = useRoute();
+const router = useRouter();
 const tipId = route.params.id;
 
 const loading = ref(false);
 const detail = ref(null);
 const comments = ref([]);
 const commentForm = ref({ content: "" });
+const commentPage = ref(1);
+const commentPageSize = ref(20);
+const commentTotal = ref(0);
+const userStore = useUserStore();
+const isLoggedIn = computed(() => !!userStore.token);
 
 const loadDetail = async () => {
   loading.value = true;
@@ -64,22 +82,65 @@ const loadDetail = async () => {
 };
 
 const loadComments = async () => {
-  comments.value = await fetchComments(tipId);
+  const data = await fetchComments(tipId, commentPage.value, commentPageSize.value);
+  comments.value = data?.records || [];
+  commentTotal.value = data?.total || 0;
+};
+
+const handleCommentPageChange = (page) => {
+  commentPage.value = page;
+  loadComments();
+};
+
+const handleCommentSizeChange = (size) => {
+  commentPageSize.value = size;
+  commentPage.value = 1;
+  loadComments();
+};
+
+const ensureLogin = async () => {
+  if (isLoggedIn.value) return true;
+  try {
+    await ElMessageBox.confirm(
+      "登录后即可点赞、收藏、评论，与社区互动",
+      "需要登录",
+      {
+        confirmButtonText: "立即登录",
+        cancelButtonText: "稍后",
+        type: "info"
+      }
+    );
+    router.push({ path: "/login", query: { redirect: route.fullPath } });
+  } catch (e) {
+    // 用户取消
+  }
+  return false;
 };
 
 const handleLike = async () => {
-  await likeTip(tipId);
-  ElMessage.success("点赞成功");
+  if (!(await ensureLogin())) return;
+  const result = await likeTip(tipId);
+  if (result.active) {
+    ElMessage.success("点赞成功");
+  } else {
+    ElMessage.success("已取消点赞");
+  }
   loadDetail();
 };
 
 const handleCollect = async () => {
-  await collectTip(tipId);
-  ElMessage.success("收藏成功");
+  if (!(await ensureLogin())) return;
+  const result = await collectTip(tipId);
+  if (result.active) {
+    ElMessage.success("收藏成功");
+  } else {
+    ElMessage.success("已取消收藏");
+  }
   loadDetail();
 };
 
 const handleComment = async () => {
+  if (!(await ensureLogin())) return;
   if (!commentForm.value.content) {
     ElMessage.warning("请输入评论内容");
     return;
@@ -90,8 +151,9 @@ const handleComment = async () => {
   loadComments();
 };
 
-const handleLikeComment = async (id) => {
-  await likeComment(id);
+const handleLikeComment = async (commentId) => {
+  if (!(await ensureLogin())) return;
+  await likeComment(tipId, commentId);
   loadComments();
 };
 

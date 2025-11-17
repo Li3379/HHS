@@ -26,3 +26,6 @@ export function collectTip(id) {
   return request.post(`/tips/${id}/collect`);
 }
 
+export function deleteTip(id) {
+  return request.delete(`/tips/${id}`);
+}

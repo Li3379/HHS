@@ -14,6 +14,7 @@ import com.hhs.vo.TipListItemVO;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -72,5 +73,13 @@ public class HealthTipController {
     public Result<ActionStateVO> collect(@PathVariable("id") Long id) {
         Long userId = requireLoginUserId();
         return Result.success(healthTipService.collectTip(userId, id));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public Result<Void> delete(@PathVariable("id") Long id) {
+        Long userId = requireLoginUserId();
+        healthTipService.deleteTip(userId, id);
+        return Result.success();
     }
 }

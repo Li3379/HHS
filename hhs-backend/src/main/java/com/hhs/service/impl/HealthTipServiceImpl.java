@@ -10,11 +10,15 @@ import com.hhs.common.PageResult;
 import com.hhs.dto.TipCreateRequest;
 import com.hhs.dto.TipPageQuery;
 import com.hhs.entity.Collect;
+import com.hhs.entity.Comment;
+import com.hhs.entity.DeleteLog;
 import com.hhs.entity.HealthTip;
 import com.hhs.entity.LikeRecord;
 import com.hhs.entity.User;
 import com.hhs.exception.BusinessException;
 import com.hhs.mapper.CollectMapper;
+import com.hhs.mapper.CommentMapper;
+import com.hhs.mapper.DeleteLogMapper;
 import com.hhs.mapper.HealthTipMapper;
 import com.hhs.mapper.LikeRecordMapper;
 import com.hhs.mapper.UserMapper;
@@ -47,15 +51,21 @@ public class HealthTipServiceImpl implements HealthTipService {
     private final UserMapper userMapper;
     private final LikeRecordMapper likeRecordMapper;
     private final CollectMapper collectMapper;
+    private final CommentMapper commentMapper;
+    private final DeleteLogMapper deleteLogMapper;
 
     public HealthTipServiceImpl(HealthTipMapper healthTipMapper,
                                 UserMapper userMapper,
                                 LikeRecordMapper likeRecordMapper,
-                                CollectMapper collectMapper) {
+                                CollectMapper collectMapper,
+                                CommentMapper commentMapper,
+                                DeleteLogMapper deleteLogMapper) {
         this.healthTipMapper = healthTipMapper;
         this.userMapper = userMapper;
         this.likeRecordMapper = likeRecordMapper;
         this.collectMapper = collectMapper;
+        this.commentMapper = commentMapper;
+        this.deleteLogMapper = deleteLogMapper;
     }
 
     @Override
@@ -260,6 +270,65 @@ public class HealthTipServiceImpl implements HealthTipService {
                 .build();
     }
 
+    @Override
+    public PageResult<TipListItemVO> pageUserTips(Long currentUserId, Long authorId, int page, int size) {
+        int pageNum = Math.max(page, 1);
+        int pageSize = Math.max(1, Math.min(size, 50));
+
+        Page<HealthTip> pageRequest = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<HealthTip> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(HealthTip::getStatus, 1)
+                .eq(HealthTip::getUserId, authorId)
+                .orderByDesc(HealthTip::getPublishTime);
+        IPage<HealthTip> result = healthTipMapper.selectPage(pageRequest, wrapper);
+
+        List<HealthTip> records = result.getRecords();
+        if (CollectionUtils.isEmpty(records)) {
+            return PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), Collections.emptyList());
+        }
+
+        User author = userMapper.selectById(authorId);
+
+        List<Long> tipIds = records.stream().map(HealthTip::getId).toList();
+        final Map<Long, LikeRecord> likeMap;
+        final Map<Long, Collect> collectMap;
+        if (currentUserId != null && !tipIds.isEmpty()) {
+            LambdaQueryWrapper<LikeRecord> likeWrapper = new LambdaQueryWrapper<>();
+            likeWrapper.eq(LikeRecord::getUserId, currentUserId)
+                    .eq(LikeRecord::getTargetType, TARGET_TYPE_TIP)
+                    .in(LikeRecord::getTargetId, tipIds);
+            likeMap = likeRecordMapper.selectList(likeWrapper).stream()
+                    .collect(Collectors.toMap(LikeRecord::getTargetId, Function.identity()));
+
+            LambdaQueryWrapper<Collect> collectWrapper = new LambdaQueryWrapper<>();
+            collectWrapper.eq(Collect::getUserId, currentUserId)
+                    .in(Collect::getTipId, tipIds);
+            collectMap = collectMapper.selectList(collectWrapper).stream()
+                    .collect(Collectors.toMap(Collect::getTipId, Function.identity()));
+        } else {
+            likeMap = Collections.emptyMap();
+            collectMap = Collections.emptyMap();
+        }
+
+        List<TipListItemVO> voList = records.stream().map(record -> TipListItemVO.builder()
+                .id(record.getId())
+                .title(record.getTitle())
+                .summary(record.getSummary())
+                .category(record.getCategory())
+                .tags(parseTags(record.getTags()))
+                .author(author != null ? author.getNickname() : "匿名用户")
+                .authorAvatar(author != null ? author.getAvatar() : null)
+                .publishTime(record.getPublishTime())
+                .viewCount(record.getViewCount())
+                .likeCount(record.getLikeCount())
+                .collectCount(record.getCollectCount())
+                .liked(likeMap.containsKey(record.getId()))
+                .collected(collectMap.containsKey(record.getId()))
+                .build()).toList();
+
+        return PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), voList);
+    }
+
     private HealthTip ensureTipExists(Long tipId) {
         HealthTip tip = healthTipMapper.selectById(tipId);
         if (tip == null || !Objects.equals(tip.getStatus(), 1)) {
@@ -301,6 +370,59 @@ public class HealthTipServiceImpl implements HealthTipService {
         updateWrapper.eq(HealthTip::getId, tipId)
                 .setSql("collect_count = CASE WHEN collect_count > 0 THEN collect_count - 1 ELSE 0 END");
         healthTipMapper.update(null, updateWrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteTip(Long userId, Long tipId) {
+        HealthTip tip = healthTipMapper.selectById(tipId);
+        if (tip == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "技巧不存在");
+        }
+        
+        // 权限校验：只能删除自己的技巧
+        if (!tip.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无权删除他人的技巧");
+        }
+        
+        // 记录删除日志（在实际删除之前）
+        User operator = userMapper.selectById(userId);
+        DeleteLog deleteLog = DeleteLog.builder()
+                .operatorId(userId)
+                .operatorName(operator != null ? operator.getNickname() : "未知用户")
+                .targetType("TIP")
+                .targetId(tipId)
+                .targetTitle(tip.getTitle())
+                .deleteTime(LocalDateTime.now())
+                .remark("软删除技巧，关联数据已级联删除")
+                .build();
+        deleteLogMapper.insert(deleteLog);
+        
+        // 软删除：设置status=0
+        tip.setStatus(0);
+        tip.setUpdateTime(LocalDateTime.now());
+        healthTipMapper.updateById(tip);
+        
+        // 级联删除：删除该技巧的所有评论
+        LambdaQueryWrapper<Comment> commentWrapper = new LambdaQueryWrapper<>();
+        commentWrapper.eq(Comment::getTipId, tipId);
+        int deletedComments = commentMapper.delete(commentWrapper);
+        
+        // 级联删除：删除该技巧的所有收藏记录
+        LambdaQueryWrapper<Collect> collectWrapper = new LambdaQueryWrapper<>();
+        collectWrapper.eq(Collect::getTipId, tipId);
+        int deletedCollects = collectMapper.delete(collectWrapper);
+        
+        // 级联删除：删除该技巧的所有点赞记录
+        LambdaQueryWrapper<LikeRecord> likeWrapper = new LambdaQueryWrapper<>();
+        likeWrapper.eq(LikeRecord::getTargetId, tipId)
+                   .eq(LikeRecord::getTargetType, TARGET_TYPE_TIP);
+        int deletedLikes = likeRecordMapper.delete(likeWrapper);
+        
+        // 更新删除日志的备注信息
+        deleteLog.setRemark(String.format("软删除技巧，级联删除：%d条评论、%d条收藏、%d条点赞", 
+                                          deletedComments, deletedCollects, deletedLikes));
+        deleteLogMapper.updateById(deleteLog);
     }
 
     private String buildSummary(TipCreateRequest request) {

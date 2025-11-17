@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -41,9 +42,16 @@ public class GlobalExceptionHandler {
         return Result.failure(400, "请求体格式错误");
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    public Result<Void> handleNoResourceFoundException(NoResourceFoundException ex) {
+        log.warn("资源未找到: {}", ex.getResourcePath());
+        // 对于静态资源（如头像）不存在的情况，返回404但不记录为错误
+        return Result.failure(404, "资源不存在");
+    }
+
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception ex) {
-        log.error("系统异常", ex);
+        log.error("系统异常: {} - {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
         return Result.failure(500, "系统异常，请稍后重试");
     }
 }

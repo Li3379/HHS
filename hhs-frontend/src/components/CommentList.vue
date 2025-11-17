@@ -4,12 +4,20 @@
     <div v-else>
       <div v-for="comment in comments" :key="comment.id" class="comment-item">
         <div class="comment-header">
-          <span class="author">{{ comment.author }}</span>
-          <span class="time">{{ comment.time }}</span>
+          <el-avatar :size="40" :src="comment.avatar" class="avatar">
+            {{ comment.username?.[0] || "游客" }}
+          </el-avatar>
+          <div class="info">
+            <div class="author">{{ comment.username || "匿名用户" }}</div>
+            <div class="time">{{ formatTime(comment.createTime) }}</div>
+          </div>
         </div>
         <div class="content">{{ comment.content }}</div>
         <div class="comment-actions">
-          <span class="action" @click="() => onLike(comment.id)">👍 {{ comment.likeCount }}</span>
+          <el-button text type="primary" size="small" @click="() => onLike(comment.id)">
+            <el-icon><Pointer /></el-icon>
+            赞 {{ comment.likeCount || 0 }}
+          </el-button>
         </div>
       </div>
     </div>
@@ -17,6 +25,8 @@
 </template>
 
 <script setup>
+import { Pointer } from "@element-plus/icons-vue";
+
 const props = defineProps({
   comments: {
     type: Array,
@@ -28,6 +38,12 @@ const emits = defineEmits(["like"]);
 
 const onLike = (id) => {
   emits("like", id);
+};
+
+const formatTime = (time) => {
+  if (!time) return "刚刚";
+  const date = new Date(time);
+  return date.toLocaleString("zh-CN");
 };
 </script>
 
@@ -56,17 +72,29 @@ const onLike = (id) => {
 
 .comment-header {
   display: flex;
-  justify-content: space-between;
-  color: #606266;
-  font-size: 14px;
+  gap: 12px;
+  align-items: center;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .author {
   font-weight: 600;
+  color: #303133;
 }
 
 .time {
   color: #909399;
+  font-size: 12px;
+}
+
+.avatar {
+  background-color: #409eff;
+  color: #fff;
 }
 
 .content {
@@ -77,6 +105,7 @@ const onLike = (id) => {
 .comment-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .action {

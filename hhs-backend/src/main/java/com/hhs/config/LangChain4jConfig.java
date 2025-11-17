@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.List;
 
 @Configuration
@@ -22,11 +23,20 @@ public class LangChain4jConfig {
     @Value("${spring.ai.langchain4j.openai.chat-model.api-key:}")
     private String apiKey;
 
-    @Value("${spring.ai.langchain4j.openai.chat-model.model-name:gpt-3.5-turbo}")
+    @Value("${spring.ai.langchain4j.openai.chat-model.base-url:https://api.openai.com/v1}")
+    private String baseUrl;
+
+    @Value("${spring.ai.langchain4j.openai.chat-model.model-name:qwen-max}")
     private String modelName;
 
     @Value("${spring.ai.langchain4j.openai.chat-model.temperature:0.7}")
     private double temperature;
+
+    @Value("${spring.ai.langchain4j.openai.chat-model.max-tokens:1000}")
+    private int maxTokens;
+
+    @Value("${spring.ai.langchain4j.openai.chat-model.timeout:30s}")
+    private String timeout;
 
     @Bean
     public ChatLanguageModel chatLanguageModel() {
@@ -40,10 +50,18 @@ public class LangChain4jConfig {
                 }
             };
         }
+        log.info("配置LangChain4j: baseUrl={}, model={}, temperature={}", 
+            baseUrl, modelName, temperature);
+        
         return OpenAiChatModel.builder()
                 .apiKey(apiKey)
+                .baseUrl(baseUrl)
                 .modelName(modelName)
                 .temperature(temperature)
+                .maxTokens(maxTokens)
+                .timeout(Duration.parse("PT" + timeout.replace("s", "S")))
+                .logRequests(true)
+                .logResponses(true)
                 .build();
     }
 }

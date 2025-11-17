@@ -22,8 +22,15 @@ public class FileUploadController {
     @Value("${file.upload.path:./uploads}")
     private String uploadPath;
 
-    @Value("${file.upload.base-url:http://localhost:8080}")
+    @Value("${file.upload.base-url:http://localhost:8082}")
     private String baseUrl;
+
+    /**
+     * 规范化上传路径，确保使用绝对路径
+     */
+    private String getNormalizedUploadPath() {
+        return Paths.get(uploadPath).toAbsolutePath().normalize().toString();
+    }
 
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
@@ -59,8 +66,8 @@ public class FileUploadController {
             }
             String filename = "avatar_" + UUID.randomUUID() + extension;
 
-            // 创建上传目录
-            Path uploadDir = Paths.get(uploadPath, "avatars");
+            // 创建上传目录（使用规范化路径）
+            Path uploadDir = Paths.get(getNormalizedUploadPath(), "avatars");
             Files.createDirectories(uploadDir);
             log.info("上传目录：{}", uploadDir.toAbsolutePath());
 
@@ -69,8 +76,8 @@ public class FileUploadController {
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
             log.info("文件保存成功：{}", filePath.toAbsolutePath());
 
-            // 返回访问URL
-            String fileUrl = baseUrl + "/uploads/avatars/" + filename;
+            // 返回访问URL（使用相对路径，让前端拼接baseURL）
+            String fileUrl = "/uploads/avatars/" + filename;
             log.info("返回文件URL：{}", fileUrl);
             return Result.success(fileUrl);
 

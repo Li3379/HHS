@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { ElMessage } from "element-plus";
+import { getToken } from "@/utils/auth";
 
 const routes = [
   {
@@ -42,6 +44,20 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+});
+
+const authRequiredPaths = ["/publish", "/user", "/ai-advisor"];
+
+router.beforeEach((to, from, next) => {
+  if (authRequiredPaths.includes(to.path)) {
+    const token = getToken();
+    if (!token) {
+      ElMessage.warning("请先登录以使用该功能");
+      next({ path: "/login", query: { redirect: to.fullPath } });
+      return;
+    }
+  }
+  next();
 });
 
 export default router;

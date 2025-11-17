@@ -1,7 +1,7 @@
 <template>
   <div class="auth-page">
     <el-card class="auth-card" shadow="always">
-      <h2 class="title">登录 HHS 账号</h2>
+      <h2 class="title">欢迎登录健捕</h2>
       <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" autocomplete="username" />
@@ -20,12 +20,13 @@
 
 <script setup>
 import { reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import { login } from "@/api/user";
 import { useUserStore } from "@/store/user";
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 
 const formRef = ref();
@@ -48,7 +49,8 @@ const handleLogin = () => {
       const data = await login(form);
       userStore.setUser(data.token, data.userInfo);
       ElMessage.success("登录成功");
-      router.push("/");
+      const redirect = route.query.redirect || "/";
+      router.push(redirect);
     } finally {
       loading.value = false;
     }

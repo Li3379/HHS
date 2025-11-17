@@ -11,7 +11,7 @@ spring:
       max-request-size: 2MB
 
 server:
-  port: 8080
+  port: 8082
   shutdown: graceful
 
 logging:
@@ -22,4 +22,4 @@ logging:
 file:
   upload:
     path: ./uploads
-    base-url: http://localhost:8080
+    base-url: http://localhost:8082

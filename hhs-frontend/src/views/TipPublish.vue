@@ -56,21 +56,29 @@ const rules = {
 };
 
 const handleAIClassify = async () => {
-  if (!form.content) {
-    ElMessage.warning("请先输入内容，AI才能分析");
+  if (!form.title || !form.content) {
+    ElMessage.warning("请先输入标题和内容，AI才能分析");
     return;
   }
   try {
-    const data = await classifyContent({ text: form.content });
+    const data = await classifyContent({ 
+      title: form.title, 
+      content: form.content 
+    });
     if (data) {
       form.category = data.category || form.category;
       suggestTags.value = data.tags || [];
       form.tags = Array.from(new Set([...form.tags, ...(data.tags || [])]));
-      ElMessage.success("AI智能推荐成功");
+      // 显示摘要（如果有）
+      if (data.summary) {
+        ElMessage.success(`AI分析成功！${data.summary}`);
+      } else {
+        ElMessage.success("AI智能推荐成功");
+      }
     }
   } catch (error) {
     console.error("AI分类失败:", error);
-    ElMessage.error("AI分类暂时不可用");
+    ElMessage.error(error.message || "AI分类暂时不可用");
   }
 };
 

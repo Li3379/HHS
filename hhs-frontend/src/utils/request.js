@@ -42,14 +42,12 @@ request.interceptors.response.use(
     
     // 如果返回的状态码不是 200，说明业务出错
     if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败');
-      
-      // 401: 未授权，跳转到登录页
+      // 401 在访客模式下仅提示
       if (res.code === 401) {
-        removeToken();
-        router.push('/login');
+        ElMessage.warning(res.message || '请先登录');
+      } else {
+        ElMessage.error(res.message || '请求失败');
       }
-      
       return Promise.reject(new Error(res.message || 'Error'));
     }
     
@@ -65,9 +63,20 @@ request.interceptors.response.use(
       
       switch (status) {
         case 401:
-          ElMessage.error('未登录或登录已过期，请重新登录');
-          removeToken();
-          router.push('/login');
+          // 公开页面（首页、详情页等）不强制跳转，只提示
+          const currentPath = router.currentRoute.value.path;
+          const publicPaths = ['/', '/tips'];
+          const isPublicPage = publicPaths.some(path => currentPath === path || currentPath.startsWith(path + '/'));
+          
+          if (isPublicPage) {
+            // 访客在公开页面，只提示不跳转
+            ElMessage.warning('该操作需要登录');
+          } else {
+            // 受保护页面，跳转登录
+            ElMessage.warning('未登录或登录已过期，请先登录');
+            removeToken();
+            router.push({ path: '/login', query: { redirect: currentPath } });
+          }
           break;
         case 403:
           ElMessage.error('没有权限访问该资源');
