@@ -103,6 +103,17 @@ const scrollToBottom = () => {
 
 // 加载历史会话记录
 const loadChatHistory = async () => {
+  // 检查是否是新创建的session（根据创建时间判断）
+  const storedDate = localStorage.getItem("ai_session_date");
+  const today = dayjs().format("YYYY-MM-DD");
+  const isNewSession = storedDate !== today;
+  
+  // 新session不需要加载历史，直接返回
+  if (isNewSession) {
+    console.log("新会话，跳过历史加载");
+    return;
+  }
+  
   loadingHistory.value = true;
   try {
     const response = await getChatHistory(sessionId.value);

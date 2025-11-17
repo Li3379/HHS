@@ -1,0 +1,41 @@
+{
+  "name": "HHS开发环境",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8082/api",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "testUserId",
+      "value": "1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "testTipId",
+      "value": "1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "testCommentId",
+      "value": "1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "sessionId",
+      "value": "test-session-001",
+      "type": "default",
+      "enabled": true
+    }
+  ]
+}

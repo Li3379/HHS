@@ -9,7 +9,8 @@
         </el-button>
       </div>
       <div class="right">
-        <el-image src="https://cdn.jsdelivr.net/gh/health-hack-system/assets/health-banner.svg" fit="contain" />
+        <!-- Banner图片暂时移除，避免CDN加载失败 -->
+        <!-- <el-image src="/assets/health-banner.svg" fit="contain" /> -->
       </div>
     </section>
 

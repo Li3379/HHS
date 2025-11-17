@@ -1,11 +1,19 @@
 import request from "@/utils/request";
 
 export function fetchTips(params) {
+  // 过滤掉空值参数，避免URL中出现空参数
+  const cleanParams = {};
+  Object.keys(params || {}).forEach(key => {
+    if (params[key] !== '' && params[key] !== null && params[key] !== undefined) {
+      cleanParams[key] = params[key];
+    }
+  });
+  
   return request.get("/tips", {
     params: {
       page: 1,
       size: 10,
-      ...params
+      ...cleanParams
     }
   });
 }

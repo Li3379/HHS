@@ -16,14 +16,31 @@ const request = axios.create({
 
 /**
  * 请求拦截器
- * 在请求发送前统一添加 Token
+ * 在请求发送前统一添加 Token（仅非公开接口）
  */
 request.interceptors.request.use(
   config => {
-    const token = getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // 定义公开接口模式（不需要token的接口）
+    const publicPatterns = [
+      /^\/auth\//,                    // 认证接口
+      /^\/tips(\?|\/|$)/,            // 小贴士列表和详情
+      /^\/users\/\d+/,               // 用户公开信息
+      /\/comments(\?|\/|$)/,         // 评论列表
+    ];
+    
+    // 检查当前请求是否为公开接口
+    const isPublicAPI = publicPatterns.some(pattern => 
+      pattern.test(config.url)
+    );
+    
+    // 只有非公开接口才添加token
+    if (!isPublicAPI) {
+      const token = getToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
+    
     return config;
   },
   error => {
