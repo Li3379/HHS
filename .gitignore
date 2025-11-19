@@ -99,14 +99,11 @@ Desktop.ini
 *.zip
 *.tar.gz
 *.rar
-
-# ===== Playwright MCP =====
-.playwright-mcp/
+*.txt
 
 # 但保留这些重要文件
 !.gitignore
 !.gitkeep
 
-postman-collection.json
-postman-environment.json
+
 

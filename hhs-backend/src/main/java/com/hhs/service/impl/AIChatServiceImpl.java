@@ -100,6 +100,7 @@ public class AIChatServiceImpl implements AIChatService {
         String answer;
         int tokensUsed = 0;
         try {
+            log.info("开始调用AI模型: messages size={}", messages.size());
             Response<AiMessage> response = chatModel.generate(messages);
             answer = response.content().text();
             tokensUsed = response.tokenUsage() != null 
@@ -107,8 +108,8 @@ public class AIChatServiceImpl implements AIChatService {
                 : 0;
             log.info("AI对话响应成功: tokens={}", tokensUsed);
         } catch (Exception e) {
-            log.error("AI对话调用失败", e);
-            throw new BusinessException(ErrorCode.AI_ERROR, "AI服务暂时不可用，请稍后再试");
+            log.error("AI对话调用失败，详细错误信息: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.AI_ERROR, "AI服务暂时不可用: " + e.getMessage());
         }
         
         // 6. 答案安全检查和过滤

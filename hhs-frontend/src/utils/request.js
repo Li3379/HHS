@@ -21,17 +21,24 @@ const request = axios.create({
 request.interceptors.request.use(
   config => {
     // 定义公开接口模式（不需要token的接口）
+    // 注意：某些路径需要根据HTTP方法判断，如 GET /tips 公开，但 POST /tips 需要认证
     const publicPatterns = [
-      /^\/auth\//,                    // 认证接口
-      /^\/tips(\?|\/|$)/,            // 小贴士列表和详情
-      /^\/users\/\d+/,               // 用户公开信息
-      /\/comments(\?|\/|$)/,         // 评论列表
+      /^\/auth\//,                    // 认证接口（登录、注册）
+    ];
+    
+    // 只读操作（GET）的公开接口
+    // 这些路径只在使用GET方法时才是公开的，POST/PUT/DELETE需要认证
+    const publicGetPatterns = [
+      /^\/tips(\?|$)/,                // 技巧列表: GET /tips 或 GET /tips?xxx
+      /^\/tips\/\d+(\?|$)/,           // 技巧详情: GET /tips/123（不包括/like等子路径）
+      /^\/tips\/\d+\/comments/,       // 技巧评论: GET /tips/123/comments
+      /^\/users\/\d+/,                // 用户信息: GET /users/123
+      /^\/comments/,                  // 评论接口: GET /comments/**
     ];
     
     // 检查当前请求是否为公开接口
-    const isPublicAPI = publicPatterns.some(pattern => 
-      pattern.test(config.url)
-    );
+    const isPublicAPI = publicPatterns.some(pattern => pattern.test(config.url)) ||
+      (config.method?.toLowerCase() === 'get' && publicGetPatterns.some(pattern => pattern.test(config.url)));
     
     // 只有非公开接口才添加token
     if (!isPublicAPI) {

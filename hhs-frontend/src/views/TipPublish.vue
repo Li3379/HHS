@@ -34,10 +34,12 @@
 
 <script setup>
 import { reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { createTip } from "@/api/healthTip";
 import { classifyContent } from "@/api/ai";
 
+const router = useRouter();
 const formRef = ref();
 const loading = ref(false);
 const suggestTags = ref([]);
@@ -92,8 +94,13 @@ const handleSubmit = () => {
         tags: form.tags.length > 0 ? form.tags : ["默认标签"]
       };
       await createTip(data);
-      ElMessage.success("发布成功");
-      handleReset();
+      ElMessage.success("发布成功！正在跳转至首页...");
+      
+      // 延迟跳转，确保用户看到成功提示
+      setTimeout(() => {
+        router.push("/");
+      }, 1000);
+      
     } catch (error) {
       console.error("发布失败:", error);
     } finally {

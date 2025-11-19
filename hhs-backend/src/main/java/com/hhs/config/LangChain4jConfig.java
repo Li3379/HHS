@@ -40,6 +40,14 @@ public class LangChain4jConfig {
 
     @Bean
     public ChatLanguageModel chatLanguageModel() {
+        log.info("=== LangChain4j配置检查 ===");
+        log.info("API Key已配置: {}", StringUtils.hasText(apiKey));
+        log.info("Base URL: {}", baseUrl);
+        log.info("Model Name: {}", modelName);
+        log.info("Temperature: {}", temperature);
+        log.info("Max Tokens: {}", maxTokens);
+        log.info("Timeout: {}", timeout);
+        
         if (!StringUtils.hasText(apiKey)) {
             log.warn("OpenAI API Key 未配置，AI 功能将使用离线占位逻辑。");
             return new ChatLanguageModel() {
@@ -50,18 +58,24 @@ public class LangChain4jConfig {
                 }
             };
         }
-        log.info("配置LangChain4j: baseUrl={}, model={}, temperature={}", 
-            baseUrl, modelName, temperature);
+        log.info("正在初始化 LangChain4j ChatModel...");
         
-        return OpenAiChatModel.builder()
-                .apiKey(apiKey)
-                .baseUrl(baseUrl)
-                .modelName(modelName)
-                .temperature(temperature)
-                .maxTokens(maxTokens)
-                .timeout(Duration.parse("PT" + timeout.replace("s", "S")))
-                .logRequests(true)
-                .logResponses(true)
-                .build();
+        try {
+            ChatLanguageModel model = OpenAiChatModel.builder()
+                    .apiKey(apiKey)
+                    .baseUrl(baseUrl)
+                    .modelName(modelName)
+                    .temperature(temperature)
+                    .maxTokens(maxTokens)
+                    .timeout(Duration.parse("PT" + timeout.replace("s", "S")))
+                    .logRequests(true)
+                    .logResponses(true)
+                    .build();
+            log.info("LangChain4j ChatModel 初始化成功！");
+            return model;
+        } catch (Exception e) {
+            log.error("LangChain4j ChatModel 初始化失败: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 }

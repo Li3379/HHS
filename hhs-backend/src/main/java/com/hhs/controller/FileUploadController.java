@@ -1,6 +1,10 @@
 package com.hhs.controller;
 
 import com.hhs.common.Result;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -14,6 +18,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
+@Tag(name = "文件上传", description = "头像、图片等文件上传功能")
 @Slf4j
 @RestController
 @RequestMapping("/api/upload")
@@ -32,9 +37,19 @@ public class FileUploadController {
         return Paths.get(uploadPath).toAbsolutePath().normalize().toString();
     }
 
+    @Operation(
+        summary = "上传头像",
+        description = "上传用户头像图片，支持 jpg/png/gif 等格式，大小不超过 2MB"
+    )
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
-    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
+    public Result<String> uploadAvatar(
+            @Parameter(
+                description = "头像图片文件",
+                required = true,
+                content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE)
+            )
+            @RequestParam("file") MultipartFile file) {
         log.info("收到头像上传请求，文件名：{}，大小：{} bytes", 
                 file.getOriginalFilename(), file.getSize());
         
